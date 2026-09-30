@@ -7,4 +7,4 @@ services:
       # Mapeia o diretório atual do host para dentro do container
       - .:/workspace
     # Executa o latexmk para compilar o arquivo desejado
-    command: sleepy infinity
+    command: sleep infinity
