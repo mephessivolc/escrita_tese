@@ -1,0 +1,578 @@
+\chapter{Construção dos Hamiltonianos}\label{cap:formulacao}
+
+    O trabalho concentrou-se, inicialmente, na construção de Hamiltonianos capazes de representar problemas de otimização combinatória em um contexto de computação quântica de variáveis contínuas. Trata-se de estabelecer uma correspondência entre a estrutura do problema e sua codificação em operadores compatíveis com sistemas quânticos desse paradigma, de modo que os estados de energia mínima do Hamiltoniano construído correspondam às soluções ótimas do problema original.
+
+    O TSP foi adotado como problema base, por constituir uma instância clássica de otimização combinatória com estrutura suficientemente rica para testar o método \cite{hartmanis1982computers}, mas com complexidade ainda tratável dos pontos de vista analítico e computacional. Sua extensão ao VRP, tratada na \autoref{sec:form_modular}, preserva a estrutura de roteamento e acrescenta a atribuição de veículos e as restrições de capacidade.
+
+    Este capítulo apresenta as três codificações desenvolvidas, organizadas na ordem em que foram construídas. Cada seção encerra-se com a análise estrutural que motivou a seguinte, de modo que a progressão é investigativa: cada codificação resolve uma limitação da anterior e revela, por sua vez, uma limitação própria.
+
+    A apresentação é analítica. As limitações identificadas ao final de cada seção decorrem diretamente da definição das codificações e não dependem de verificação experimental; os resultados numéricos que as quantificam são apresentados no \autoref{cap:resultados}.
+
+
+\section{Mapeamento direto da modelagem binária}\label{sec:form_qubo}
+
+    Como ponto de partida, considerou-se uma correspondência direta entre a modelagem discreta usual e o formalismo de variáveis contínuas: cada qubit, originalmente associado a uma variável binária no modelo clássico, é mapeado para um qumode, de modo a reproduzir o comportamento discreto esperado \cite{verdon2019quantum}. Parte-se, assim, da modelagem já consagrada na literatura para qubits em problemas do tipo QUBO \cite{lucas2014ising}, transportando-se sua estrutura termo a termo. Essa escolha oferece um ponto de partida cuja correção é conhecida, de modo que eventuais discrepâncias possam ser atribuídas à transposição, e não à modelagem do problema.
+
+    Adota-se a convenção de depósito descrita no \autoref{cap:formulacao}: o vértice $V_0$ é o ponto de partida e de retorno do percurso, e os demais $N-1$ vértices correspondem às cidades a serem atendidas. Define-se a variável binária
+    \begin{equation}\label{eq:form_qubo_var}
+        x_{i,k} =
+        \begin{cases}
+            1, & \text{se a cidade } V_i \text{ é atendida na posição } k,\\
+            0, & \text{caso contrário},
+        \end{cases}
+    \end{equation}
+    \noindent com $i, k \in \{1, \dots, N-1\}$, de modo que a modelagem requer $(N-1)^2$ variáveis.
+
+    A função objetivo reúne os deslocamentos de saída do depósito, os deslocamentos internos entre posições consecutivas e o retorno ao depósito:
+    \begin{equation}\label{eq:form_qubo_obj}
+        C(x) = \sum_{i=1}^{N-1} d_{0i}\, x_{i,1}
+        \;+\; \sum_{k=1}^{N-2} \sum_{i=1}^{N-1} \sum_{j=1}^{N-1} d_{ij}\, x_{i,k}\, x_{j,k+1}
+        \;+\; \sum_{i=1}^{N-1} d_{i0}\, x_{i,N-1} .
+    \end{equation}
+
+    A validade de uma atribuição exige duas famílias de restrições, usuais em modelagens do tipo QUBO \cite{lucas2014ising}: cada posição deve conter exatamente uma cidade e cada cidade deve ser atendida exatamente uma vez,
+    \begin{equation}\label{eq:form_qubo_restr_one_pos_per_city}
+        \sum_{i=1}^{N-1} x_{i,k} = 1 \quad \forall\, k ,
+    \end{equation}
+    \begin{equation}\label{eq:form_qubo_restr_one_city_per_pos}
+        \sum_{k=1}^{N-1} x_{i,k} = 1 \quad \forall\, i .
+    \end{equation}
+
+    \subsection{Transposição para qumodes}\label{subsec:form_qubo_transposicao}
+
+        A transposição consiste em associar a cada variável binária $x_{i,k}$ um qumode próprio, substituindo-a pelo operador de posição correspondente. Introduzem-se os operadores canônicos $\hat{x}_{i,k}$ e $\hat{p}_{i,k}$, que satisfazem \cite{weedbrook2012gaussian, verdon2019quantum}
+        \begin{equation}\label{eq:form_qubo_comut}
+            [\hat{x}_{i,k}, \hat{p}_{j,l}] = i\hbar\, \delta_{ij}\, \delta_{kl} ,
+        \end{equation}
+        \noindent adotando-se a convenção $\hbar = 1$ para simplificação algébrica.
+
+        O operador de posição possui espectro contínuo, ao passo que a modelagem exige valores em $\{0, 1\}$. O comportamento binário é então obtido pela reparametrização \cite{arrazola2019machine}
+        \begin{equation}\label{eq:form_qubo_reparam}
+            \hat{x}_{i,k} = \frac{1 + \hat{x}'_{i,k}}{2} ,
+        \end{equation}
+        \noindent de modo que $\hat{x}'_{i,k} \approx \pm 1$ corresponde a $\hat{x}_{i,k} \in \{0, 1\}$, e pela imposição energética desse comportamento por meio de um potencial de poço duplo:
+        \begin{equation}\label{eq:form_qubo_bin}
+            \hat{H}_{\text{bin}} = \sum_{i,k} \left( (\hat{x}'_{i,k})^2 - 1 \right)^2 .
+        \end{equation}
+
+        Acrescenta-se, ainda, um termo cinético \cite{verdon2019quantum}
+        \begin{equation}\label{eq:form_qubo_cin}
+            \hat{H}_{\text{cin}} = \sum_{i,k} \frac{\hat{p}_{i,k}^2}{2m} .
+        \end{equation}
+
+        Caso fosse omitido, o Hamiltoniano resultaria função exclusiva dos operadores de posição, diagonal na base correspondente e de espectro contínuo: o ínfimo do valor esperado seria atingido apenas por autoestados impróprios, perfeitamente localizados nos mínimos do potencial e, por conseguinte, não normalizáveis. O termo cinético estabelece o compromisso imposto pela relação de incerteza, a localização em posição implica dispersão em momento, do que decorrem um espectro discreto e um estado fundamental de largura finita em torno de cada mínimo. A necessidade de um termo que limite a extensão do estado no espaço de fases não é particularidade desta codificação, e reaparecerá sob outra forma na \autoref{sec:form_modular}.
+
+        O Hamiltoniano completo reúne as contribuições de custo, binarização, restrições e confinamento:
+        \begin{equation}\label{eq:form_qubo_total}
+            \begin{aligned}
+                \hat{H} ={} & \sum_{i=1}^{N-1} d_{0i}\, \hat{x}_{i,1}
+                + \sum_{k=1}^{N-2} \sum_{i=1}^{N-1} \sum_{j=1}^{N-1} d_{ij}\, \hat{x}_{i,k}\, \hat{x}_{j,k+1}
+                + \sum_{i=1}^{N-1} d_{i0}\, \hat{x}_{i,N-1} \\
+                & + \alpha \sum_{i,k} \left( (\hat{x}'_{i,k})^2 - 1 \right)^2
+                + \beta \sum_{i=1}^{N-1} \left( \sum_{k=1}^{N-1} \hat{x}_{i,k} - 1 \right)^2 \\
+                & + \gamma \sum_{k=1}^{N-1} \left( \sum_{i=1}^{N-1} \hat{x}_{i,k} - 1 \right)^2
+                + \sum_{i,k} \frac{\hat{p}_{i,k}^2}{2m} ,
+            \end{aligned}
+        \end{equation}
+        \noindent em que $\alpha$, $\beta$, $\gamma$ e $m$ são hiperparâmetros do modelo. A solução é obtida pela minimização
+        \begin{equation}\label{eq:form_qubo_min}
+            \min_{\ket{\psi} \in \mathcal{H}} \bra{\psi} \hat{H} \ket{\psi} .
+        \end{equation}
+
+    \subsection{Natureza da correspondência}\label{subsec:form_qubo_correspondencia}
+
+        A \autoref{eq:form_qubo_total} reproduz a modelagem binária, mas a correspondência entre as duas é de natureza assintótica, e não exata.
+
+        Os autovalores de $\hat{x}'_{i,k}$ percorrem toda a reta real. O poço duplo da \autoref{eq:form_qubo_bin} favorece energeticamente as vizinhanças de $\pm 1$, porém a barreira que as separa é finita e o estado fundamental de cada modo possui amplitude não nula em toda a região intermediária. Os valores esperados $\langle \hat{x}_{i,k} \rangle$ aproximam-se de $0$ ou $1$ à medida que $\alpha$ cresce, sem jamais assumi-los exatamente.
+
+        Daí decorrem duas consequências. A primeira é que a correspondência com a modelagem binária só se estabelece no limite $\alpha \to \infty$, e para valores finitos subsiste um desvio sistemático cuja magnitude depende da escolha do hiperparâmetro. A segunda é que $\alpha$ compete com os demais pesos: valores insuficientes comprometem a binarização, enquanto valores excessivos tornam o termo de custo irrelevante em comparação, prejudicando a discriminação entre percursos de custos próximos.
+
+        A verificação da codificação, nesse contexto, não pode ser feita por argumento algébrico sobre a estrutura do Hamiltoniano, como será possível na \autoref{sec:form_fock}. Ela depende de comparação numérica entre os estados de energia mínima obtidos e as soluções de referência, apresentada no \autoref{cap:resultados}.
+
+    \subsection{Limitação estrutural}\label{subsec:form_qubo_limitacao}
+
+        O mapeamento direto estabelece a abordagem inicial pretendida, e seu resultado principal é de ordem conceitual. A possibilidade de reproduzir em qumodes os Hamiltonianos consagrados para qubits em problemas do tipo QUBO assegura que o formalismo de variáveis contínuas comporta toda a classe de problemas de otimização combinatória já tratável no paradigma discreto. É essa garantia que legitima a investigação de codificações alternativas: sabe-se, desde o início, que o alvo é alcançável, de modo que a questão em aberto passa a ser a eficiência da representação, e não sua existência.
+
+        Três características, contudo, tornam o mapeamento direto inadequado como codificação de trabalho.
+
+        A primeira é o custo em modos. Cada variável binária consome um qumode, de modo que um grafo de $N$ vértices exige $(N-1)^2$ modos. O crescimento quadrático é herdado da modelagem binária e não decorre de nenhuma necessidade do formalismo contínuo.
+
+        A segunda é o custo em truncamento. O poço duplo da \autoref{eq:form_qubo_bin} é um operador quártico nos operadores de posição, e sua representação fiel em uma base de Fock truncada exige dimensão local não inferior a quatro níveis. Combinado ao crescimento quadrático do número de modos, isso conduz a um espaço de estados de dimensão ao menos $4^{(N-1)^2}$, o que inviabiliza a simulação clássica já para grafos de poucos vértices.
+
+        A terceira, e mais relevante do ponto de vista conceitual, diz respeito ao papel atribuído ao qumode. Nesta codificação, cada modo transporta uma única variável binária, e a estrutura contínua de seu espaço de estados, a propriedade que distingue o paradigma, não é empregada como recurso, mas tratada como obstáculo a ser suprimido energeticamente. O espaço de Hilbert de dimensão infinita de cada modo é utilizado para representar dois valores.
+
+        Essa observação sugere a direção da codificação seguinte. Se o espaço de Fock já oferece um conjunto discreto e enumerável de estados, a discretização não precisa ser imposta: cabe perguntar qual grandeza do problema pode ser diretamente associada aos níveis de ocupação, dispensando tanto o poço duplo quanto a proliferação de modos. É essa construção que se apresenta na \autoref{sec:form_fock}.
+
+
+\section{Codificação posicional por níveis de Fock}\label{sec:form_fock}
+
+    A elaboração apresentada na \autoref{sec:form_qubo} reproduz, no formalismo de variáveis contínuas, a estrutura de um modelo QUBO em qubits. Essa correspondência direta tem valor de verificação, mas carrega para o novo formalismo uma característica que lhe é estranha: a necessidade de uma variável binária por par vértice-posição, cada uma exigindo um qumode próprio e um termo de penalização que force seu espectro contínuo a comportar-se de modo discreto.
+
+    A codificação descrita nesta seção parte da observação de que essa discretização não precisa ser imposta: ela já está disponível na estrutura do espaço de Fock. O espectro do operador número é discreto por construção, e seus autoestados $\ket{0}, \ket{1}, \ket{2}, \dots$ fornecem um conjunto enumerável de rótulos sem que nenhum termo adicional seja necessário \cite{weedbrook2012gaussian}. A questão passa a ser, então, qual grandeza do problema deve ser associada a esses rótulos.
+
+    Adota-se, desde já, a convenção que será mantida ao longo de todo o trabalho: o vértice $V_0$ designa o depósito, ponto de partida e de retorno obrigatório do percurso, e os demais $N-1$ vértices correspondem às cidades a serem atendidas. Essa escolha não altera o conjunto de soluções do TSP, pois um ciclo hamiltoniano permanece o mesmo independentemente do vértice a partir do qual é percorrido, mas elimina a liberdade de escolha do ponto inicial, com consequências sobre a codificação que serão discutidas adiante.
+
+    \begin{defi}[Codificação posicional]\label{defi:cod_posicional}
+        Seja um grafo completo com $N$ vértices, matriz de distâncias $d_{ab}$ e vértice $V_0$ designado como depósito. Associa-se a cada \emph{posição} $k \in \{1, 2, \dots, N-1\}$ do percurso um qumode, e identifica-se a cidade atendida nessa posição pelo nível de ocupação do modo correspondente. Uma configuração do percurso é descrita pelo vetor $(c_1, c_2, \dots, c_{N-1})$, com $c_k$ denotando a cidade atendida na $k$-ésima posição, representada pelo estado
+        \begin{equation}\label{eq:estado_cod_posicional}
+            \ket{c_1\, c_2 \cdots c_{N-1}} = \bigotimes_{k=1}^{N-1} \ket{c_k}_k ,
+        \end{equation}
+        \noindent correspondente ao percurso $V_0 \rightarrow V_{c_1} \rightarrow V_{c_2} \rightarrow \cdots \rightarrow V_{c_{N-1}} \rightarrow V_0$.
+    \end{defi}
+
+    Os rótulos de cidade são tomados no intervalo $\{1, 2, \dots, N-1\}$, de modo que o estado de vácuo $\ket{0}$ permaneça reservado e não corresponda a nenhuma cidade. Essa convenção exige dimensão de truncamento
+    \begin{equation}\label{eq:cutoff_cod_posicional}
+        d = N ,
+    \end{equation}
+    \noindent e tem a vantagem de tornar o vácuo uma configuração explicitamente inválida, penalizada pelo mesmo termo que trata as demais violações, como se verá adiante.
+
+    O depósito não recebe modo próprio. Sua participação no percurso está inteiramente determinada pela definição do problema, ele ocupa a primeira e a última posições, de modo que representá-lo explicitamente apenas acrescentaria graus de liberdade sem informação. São necessários, portanto, $N-1$ qumodes para um grafo de $N$ vértices.
+
+    Para exemplificar, considere $N = 5$, com depósito $V_0$ e cidades $V_1, \dots, V_4$, e o estado $\ket{3\,1\,4\,2}$: a primeira posição do percurso é atendida pela cidade $V_3$, a segunda por $V_1$, a terceira por $V_4$ e a quarta por $V_2$, resultando no percurso fechado $V_0 \rightarrow V_3 \rightarrow V_1 \rightarrow V_4 \rightarrow V_2 \rightarrow V_0$. Um percurso válido corresponde, portanto, a um estado em que os valores $c_1, \dots, c_{N-1}$ formam uma permutação de $\{1, \dots, N-1\}$, garantindo que cada cidade seja atendida exatamente uma vez.
+
+    \subsection{Hamiltoniano de custo}\label{subsec:form_fock_custo}
+
+        O custo de um percurso é a soma das distâncias entre vértices atendidos em posições consecutivas, incluídos os deslocamentos de saída e de retorno ao depósito. Denotando por $\ketbra{a}{a}_k$ o projetor sobre o nível de Fock $a$ do modo associado à posição $k$, o Hamiltoniano de custo decompõe-se em três contribuições:
+        \begin{equation}\label{eq:form_fock_hdist}
+            \hat{H}_{\text{dist}} =
+            \underbrace{\sum_{a=1}^{N-1} d_{0a}\, \ketbra{a}{a}_1}_{\text{saída do depósito}}
+            \;+\; \underbrace{\sum_{k=1}^{N-2} \sum_{a=1}^{N-1} \sum_{b=1}^{N-1}
+            d_{ab}\; \ketbra{a}{a}_k \otimes \ketbra{b}{b}_{k+1}}_{\text{deslocamentos internos}}
+            \;+\; \underbrace{\sum_{a=1}^{N-1} d_{a0}\, \ketbra{a}{a}_{N-1}}_{\text{retorno ao depósito}} .
+        \end{equation}
+
+        Cada termo do somatório interno contribui com a distância $d_{ab}$ exatamente quando a cidade $a$ ocupa a posição $k$ e a cidade $b$ ocupa a posição seguinte. Os termos de saída e de retorno fecham o percurso no depósito.
+
+        Observe-se que os somatórios percorrem apenas os rótulos de cidade, de modo que um modo no estado de vácuo não contribui para o custo. Essa configuração é tratada pelo termo de penalização.
+
+    \subsection{Termo de penalização}\label{subsec:form_fock_penal}
+
+        A codificação da \autoref{defi:cod_posicional} garante automaticamente que cada posição do percurso receba uma única cidade, pois cada modo encontra-se em um único autoestado de número. Resta impor que cada cidade seja atendida exatamente uma vez. Definindo o operador de ocupação da cidade $a$,
+        \begin{equation}\label{eq:form_fock_Na}
+            \hat{N}_a = \sum_{k=1}^{N-1} \ketbra{a}{a}_k ,
+        \end{equation}
+        \noindent cujo autovalor conta em quantas posições do percurso a cidade $a$ aparece, a restrição é imposta por
+        \begin{equation}\label{eq:form_fock_hpen}
+            \hat{H}_{\text{pen}} = \sum_{a=1}^{N-1} \left( \hat{N}_a - \hat{\mathbb{I}} \right)^2 .
+        \end{equation}
+
+        O Hamiltoniano completo é
+        \begin{equation}\label{eq:form_fock_total}
+            \hat{H} = \hat{H}_{\text{dist}} + \lambda\, \hat{H}_{\text{pen}} ,
+            \qquad \lambda > 0 .
+        \end{equation}
+
+        Note-se que a \autoref{eq:form_fock_hpen} trata simultaneamente as duas formas de violação possíveis. Se uma cidade ocupa mais de uma posição, tem-se $\hat{N}_a \geq 2$ e a penalização é positiva; se uma cidade não é atendida, ou se algum modo permanece no vácuo, tem-se $\hat{N}_a = 0$ para ao menos um $a$, e a penalização é igualmente positiva. Não é necessário, portanto, um termo adicional para excluir o estado de vácuo.
+
+    \subsection{Corretude da codificação}\label{subsec:form_fock_corretude}
+
+        Os operadores que compõem a \autoref{eq:form_fock_total} são todos diagonais na base produto de Fock. O problema de autovalores reduz-se, assim, à minimização de uma função sobre as $N^{N-1}$ configurações do sistema, o que permite enunciar a corretude da codificação de modo exato.
+
+        \begin{prop}[Corretude da codificação posicional]\label{prop:form_fock_corretude}
+            Seja $d_{\max} = \max_{a,b}\ (d_{ab})$. Se
+            \begin{equation}\label{eq:form_fock_lambda}
+                \lambda > N \, d_{\max} ,
+            \end{equation}
+            \noindent então todo autoestado fundamental de $\hat{H}$ corresponde a uma permutação de $\{1, \dots, N-1\}$ cujo custo associado é mínimo, isto é, a uma solução ótima do TSP sobre o grafo com depósito em $V_0$.
+        \end{prop}
+
+        \noindent\textit{Demonstração.} Como $\hat{H}$ é diagonal na base de Fock, basta comparar os valores de energia associados às configurações $c = (c_1, \dots, c_{N-1})$, com $c_k \in \{0, 1, \dots, N-1\}$. Seja $m_a$ o número de posições ocupadas pela cidade $a$ na configuração $c$. A energia correspondente é
+        \begin{equation*}
+            E(c) = C(c) + \lambda \sum_{a=1}^{N-1} (m_a - 1)^2 ,
+        \end{equation*}
+        \noindent em que $C(c) \geq 0$ denota a contribuição de $\hat{H}_{\text{dist}}$.
+
+        Se $c$ é uma permutação de $\{1, \dots, N-1\}$, então $m_a = 1$ para todo $a$, a penalização anula-se e $E(c) = C(c)$, que é o custo do percurso. Em particular, denotando por $C^\ast$ o custo mínimo entre os percursos válidos, existe configuração com $E(c) = C^\ast$. Como um percurso fechado sobre $N$ vértices percorre $N$ arestas, cada uma de comprimento no máximo $d_{\max}$, vale $C^\ast \leq N\, d_{\max}$.
+
+        Se $c$ não é uma permutação, então $\sum_a m_a \leq N-1$ com ao menos um $m_a \neq 1$, do que decorre a existência de ao menos um índice com $m_a = 0$. Logo $\sum_a (m_a - 1)^2 \geq 1$ e, sendo $C(c) \geq 0$,
+        \begin{equation*}
+            E(c) \geq \lambda > N\, d_{\max} \geq C^\ast .
+        \end{equation*}
+
+        Toda configuração inválida possui, portanto, energia estritamente superior à do melhor percurso válido, de modo que o mínimo de $\hat{H}$ é atingido em configurações válidas e de custo mínimo. \hfill$\square$
+
+        \bigskip
+
+        A condição da \autoref{eq:form_fock_lambda} é suficiente, não necessária, e deliberadamente conservadora: a demonstração emprega a cota $C^\ast \leq N\,d_{\max}$, que raramente é justa. Valores menores de $\lambda$ podem preservar a corretude em instâncias específicas, e a verificação pode ser feita diretamente, dada a natureza diagonal do Hamiltoniano.
+
+        Cabe destacar o alcance da \autoref{prop:form_fock_corretude}. Ela estabelece que o estado fundamental do Hamiltoniano codifica uma solução ótima do problema, o que caracteriza a corretude da codificação independentemente do método empregado para obtê-lo. A questão subsequente, se um estado parametrizado de profundidade finita é capaz de aproximar esse estado fundamental, é de natureza distinta e será tratada no \autoref{cap:resultados}.
+
+    \subsection{Custo em recursos}\label{subsec:form_fock_recursos}
+
+        A codificação posicional representa um grafo de $N$ vértices com $N-1$ qumodes de corte $d = N$, enquanto a elaboração da \autoref{sec:form_qubo} requer um qumode por par vértice-posição. Como o poço duplo que impõe o comportamento binário é um operador quártico, sua representação fiel exige corte local não inferior a quatro níveis. A \autoref{tab:form_comparacao_recursos} contrasta as duas sob a mesma convenção de depósito.
+
+        \begin{table}[!htb]
+        \centering
+        \caption{Recursos exigidos pelas duas codificações do TSP em qumodes, para um grafo de $N$ vértices com depósito designado.}
+        \label{tab:form_comparacao_recursos}
+        \begin{tabular}{crrrr}
+        \hline
+        & \multicolumn{2}{c}{\textbf{Mapeamento direto QUBO}} & \multicolumn{2}{c}{\textbf{Codificação posicional}} \\
+        $N$ & qumodes & dimensão & qumodes & dimensão \\
+        \hline
+        3 & 4  & $256$                  & 2 & $9$ \\
+        4 & 9  & $2{,}6 \times 10^{5}$  & 3 & $64$ \\
+        5 & 16 & $4{,}3 \times 10^{9}$  & 4 & $625$ \\
+        6 & 25 & $1{,}1 \times 10^{15}$ & 5 & $7\,776$ \\
+        7 & 36 & $4{,}7 \times 10^{21}$ & 6 & $117\,649$ \\
+        8 & 49 & $3{,}2 \times 10^{29}$ & 7 & $2{,}1 \times 10^{6}$ \\
+        \hline
+        \end{tabular}
+        \fonte{Autoria própria (2026)}
+        \end{table}
+
+        A redução quadrática no número de qumodes constitui a principal contribuição desta codificação. Ela decorre de uma mudança de perspectiva sobre o papel do qumode: na elaboração anterior, cada modo carrega uma única variável binária, e a riqueza de seu espaço de estados é desperdiçada; aqui, cada modo carrega um rótulo com $N-1$ valores possíveis, aproveitando a estrutura discreta já presente no espaço de Fock \cite{?}.
+
+        A designação do depósito contribui de forma independente para essa economia. Como sua posição no percurso é fixa, ele dispensa modo próprio, e a eliminação da liberdade de escolha do vértice inicial reduz também a degenerescência do espectro: as $N$ rotações que descrevem um mesmo ciclo colapsam em uma única configuração.
+
+    \subsection{Limitação estrutural}\label{subsec:form_fock_limitacao}
+
+        A codificação posicional resolve o custo em número de modos, mas uma análise de sua estrutura algébrica revela uma limitação de natureza distinta.
+
+        Todos os operadores que compõem \autoref{eq:form_fock_total} são projetores $\ketbra{a}{a}$ sobre autoestados do operador número, e combinações lineares desses projetores. A construção opera, portanto, inteiramente na base própria de $\hat{n}$. Como $\hat{n}$ é invariante sob rotações no espaço de fases, essa base não distingue as quadraturas $\hat{x}$ e $\hat{p}$, nem estabelece qualquer relação entre elas: nenhum par de observáveis canonicamente conjugados carrega informação distinta na codificação.
+
+        A consequência é que o espaço de estados do qumode é utilizado apenas como um registrador de $N$ níveis. Nenhuma propriedade do espectro contínuo, nenhuma operação do grupo de Weyl-Heisenberg e nenhuma relação de incerteza desempenham papel na construção. Operacionalmente, a codificação é equivalente a uma codificação em \textit{qudits} de dimensão $N$, implementada em qumodes \cite{?}.
+
+        Essa constatação tem duas consequências. A primeira é conceitual: embora a codificação esteja assentada em um sistema de variáveis contínuas, ela não explora as características que distinguem esse paradigma dos modelos discretos, de modo que o ganho obtido é de contagem de modos e não de natureza do recurso computacional empregado.
+
+        A segunda é prática e manifesta-se na extensão a problemas com múltiplos veículos. Como toda a informação de uma cidade reside em um único rótulo discreto, atribuir simultaneamente posição e veículo exige ampliar esse rótulo para o par ordenado correspondente, elevando o corte local ao produto do número de veículos pelo número de posições. A dimensão do espaço de estados passa a crescer com esse produto, e o ganho obtido sobre a elaboração anterior deteriora-se à medida que a frota aumenta.
+
+        A superação dessa limitação exige que as duas quadraturas do qumode sejam efetivamente empregadas, e que uma relação entre elas seja estabelecida de modo que ambas possam rotular grandezas distintas de maneira simultânea. É essa construção que se apresenta na \autoref{sec:form_modular}.
+
+
+\section{Codificação modular em duas quadraturas}\label{sec:form_modular}
+
+    A limitação identificada na \autoref{subsec:form_fock_limitacao} indica a direção a seguir: é preciso que as duas quadraturas do qumode carreguem informação distinta e que uma relação entre elas seja estabelecida, de modo que ambas possam ser lidas simultaneamente. A codificação apresentada nesta seção atende a essa exigência e, ao fazê-lo, acomoda naturalmente a atribuição de veículos e as restrições de capacidade exigidas pelo VRP.
+
+    O elemento central da construção são as variáveis modulares do oscilador, isto é, as partes fracionárias de posição e momento relativamente a duas escalas $a$ e $b$. Quando essas escalas satisfazem uma condição de compatibilidade, as duas variáveis tornam-se simultaneamente determináveis, ainda que $\hat{x}$ e $\hat{p}$ sejam canonicamente conjugados \cite{?}. É essa propriedade, estabelecida na \autoref{prop:form_mod_comutacao}, que viabiliza a codificação conjunta de posição e veículo em um único modo.
+
+    \subsection{Inversão da convenção de índice}\label{subsec:form_mod_convencao}
+
+        Antes de prosseguir, cabe registrar uma mudança de convenção em relação à \autoref{sec:form_fock}. Na codificação posicional, o índice do modo designa a posição no percurso e o nível de ocupação identifica a cidade. Para o TSP, essa escolha é equivalente à inversa, pois ambas descrevem permutações e diferem apenas por qual conjunto é tomado como domínio.
+
+        A equivalência finaliza quando se admitem múltiplos veículos. O veículo é atribuído à cidade, e não à posição: cada cidade é atendida por um veículo, enquanto uma mesma posição ordinal existe em todas as rotas. Para que o atributo adicional possa ser associado ao modo, é necessário que o modo represente a cidade. Adota-se, portanto, a convenção:
+
+        \begin{quote}
+            cada cidade $V_i$, com $i \in \{1, \dots, N-1\}$, é representada por um qumode, cujas variáveis modulares de posição e de momento codificam, respectivamente, a posição de atendimento na rota e o veículo responsável.
+        \end{quote}
+
+        O número de modos permanece $N-1$, como na \autoref{sec:form_fock}. O depósito segue dispensando modo próprio.
+
+    \subsection{Espaços de rota e cotas de dimensionamento}\label{subsec:form_mod_slots}
+
+        Define-se espaço de rota como o par ordenado
+        \begin{equation}\label{eq:form_mod_slot}
+            (v, r), \qquad v \in \{1, \dots, M\}, \quad r \in \{1, \dots, R\} ,
+        \end{equation}
+        \noindent em que $v$ identifica o veículo e $r$ a posição ocupada na rota desse veículo. Para fins de registro, o par admite o rótulo escalar $s(v,r) = (v-1)R + r$, que não constitui, porém, a codificação física: veículo e posição permanecem graus de liberdade modulares distintos.
+
+        O número de posições por veículo não precisa ser tomado igual a $N-1$. Quando todos os veículos são obrigatórios, vale 
+        \begin{equation}\label{eq:form_mod_R}
+            R = \min\left\{ N-1, \;
+            \left\lfloor \frac{\max_v Q_v}{\min_i q_i} \right\rfloor, \;
+            N - M \right\} ,
+        \end{equation}
+        \noindent em que a primeira parcela é trivial, a segunda decorre da capacidade dos veículos, pois nenhuma rota pode conter mais cidades do que a capacidade máxima comporta ao menor valor de demanda, e a terceira decorre de que os demais $M-1$ veículos obrigatórios devem atender ao menos uma cidade cada. Sendo o uso dos veículos opcional, a última parcela deve ser omitida.
+
+        A cota tem consequência direta sobre o custo da representação, pois o número de espaços de rota por cidade é $MR$, e dele depende a resolução exigida das variáveis modulares.
+
+    \subsection{Variáveis modulares e condição de compatibilidade}\label{subsec:form_mod_variaveis}
+
+        Sejam $a > 0$ e $b > 0$ duas escalas de comprimento no espaço de fases. Associam-se a cada modo os operadores unitários de Weyl
+        \begin{equation}\label{eq:form_mod_weyl}
+            \hat{U}_i = \exp\!\left( i\,\frac{2\pi}{a}\, \hat{x}_i \right) ,
+            \qquad\qquad
+            \hat{V}_i = \exp\!\left( i\,\frac{2\pi}{b}\, \hat{p}_i \right) ,
+        \end{equation}
+        \noindent que são deslocamentos no espaço de fases e geram, por suas potências, todas as funções periódicas das partes fracionárias de $\hat{x}_i$ e $\hat{p}_i$. A codificação é definida por meio desses operadores, e não pelas variáveis modulares tratadas como observáveis canônicos ordinários.
+
+        \begin{prop}[Comutação dos deslocamentos modulares]\label{prop:form_mod_comutacao}
+            Os operadores $\hat{U}_i$ e $\hat{V}_i$ definidos em \autoref{eq:form_mod_weyl} comutam se, e somente se, o produto das escalas satisfaz
+            \begin{equation}\label{eq:form_mod_condicao}
+                a\,b = 2\pi\hbar\, n , \qquad n \in \mathbb{Z}^{*} .
+            \end{equation}
+        \end{prop}
+
+        {\color{red} REVER A DEMONSTRAÇÃO}
+
+        \noindent\textit{Demonstração.} Sejam $\hat{A} = i\,(2\pi/a)\,\hat{x}_i$ e $\hat{B} = i\,(2\pi/b)\,\hat{p}_i$. De $[\hat{x}_i, \hat{p}_j] = i\hbar\,\delta_{ij}$ decorre
+        \begin{equation*}
+            [\hat{A}, \hat{B}] = i^2 \frac{4\pi^2}{ab}\, [\hat{x}_i, \hat{p}_i]
+            = -\,i\,\frac{4\pi^2 \hbar}{ab} ,
+        \end{equation*}
+        \noindent que é múltiplo da identidade e, portanto, comuta com $\hat{A}$ e com $\hat{B}$. Nessas condições, a fórmula de Baker-Campbell-Hausdorff reduz-se à relação de Weyl
+        \begin{equation}\label{eq:form_mod_weyl_rel}
+            \hat{U}_i \hat{V}_i = \hat{V}_i \hat{U}_i \,
+            \exp\!\left( -\,i\,\frac{4\pi^2\hbar}{ab} \right) ,
+        \end{equation}
+        \noindent de modo que $\hat{U}_i$ e $\hat{V}_i$ comutam se, e somente se, $4\pi^2\hbar / (ab) = 2\pi n$ para algum inteiro não nulo $n$, o que equivale a \autoref{eq:form_mod_condicao}. \hfill$\square$
+
+        \bigskip
+
+        Adota-se o caso $n = 1$, para o qual
+        \begin{equation}\label{eq:form_mod_rede}
+            a = b = \sqrt{2\pi\hbar} ,
+        \end{equation}
+        \noindent correspondente a uma rede quadrada no espaço de fases. Operadores associados a modos distintos comutam trivialmente, de sorte que a família completa $\{\hat{U}_i, \hat{V}_i\}_{i=1}^{N-1}$ {\color{red} verificar essa afirmação} admite descrição espectral conjunta.
+
+        Sobre o espectro conjunto, escrevem-se
+        \begin{equation}\label{eq:form_mod_autofases}
+            \hat{U}_i \longleftrightarrow e^{i\theta_i} ,
+            \qquad\qquad
+            \hat{V}_i \longleftrightarrow e^{i\varphi_i} ,
+            \qquad \theta_i, \varphi_i \in [0, 2\pi) ,
+        \end{equation}
+        \noindent e definem-se as grades de posição e de veículo
+        \begin{equation}\label{eq:form_mod_nos}
+            \theta_r = \frac{2\pi (r-1)}{R}, \quad r = 1, \dots, R ,
+            \qquad\qquad
+            \varphi_v = \frac{2\pi (v-1)}{M}, \quad v = 1, \dots, M ,
+        \end{equation}
+        \noindent de modo que o nó $(\theta_r, \varphi_v)$ representa o espaço de rota $(v, r)$.
+
+        A \autoref{prop:form_mod_comutacao} é o fundamento da codificação. Embora $\hat{x}_i$ e $\hat{p}_i$ não admitam autoestados comuns, suas partes fracionárias relativamente a escalas compatíveis admitem. A relação de incerteza não é violada, pois a informação descartada, a identidade da célula ocupada em cada quadratura, é precisamente aquela que permanece indeterminada \cite{?}.
+
+        Os autoestados generalizados simultâneos são descritos naturalmente pela representação de Zak \cite{?}. Tais estados não são normalizáveis, e em uma realização física de energia finita devem ser substituídos por estados localizados em torno dos valores modulares desejados, a exemplo dos estados de energia finita do tipo GKP \cite{?}. Essa circunstância tem consequências sobre a construção do Hamiltoniano, retomadas na \autoref{subsec:form_mod_regularizacao}.
+
+    \subsection{Atribuição aos espaços de rota}\label{subsec:form_mod_fejer}
+
+        Para um inteiro $K \geq 1$, define-se o núcleo de Fejér normalizado \cite{?}
+        \begin{equation}\label{eq:form_mod_fejer}
+            F_K(t) = \frac{1}{K^2} \left| \sum_{k=0}^{K-1} e^{ikt} \right|^2
+            = \sum_{m=-(K-1)}^{K-1} \frac{K - |m|}{K^2}\, e^{imt} ,
+        \end{equation}
+        \noindent que satisfaz
+        \begin{equation}\label{eq:form_mod_fejer_props}
+            F_K(t) \geq 0 , \qquad F_K(0) = 1 , \qquad
+            F_K\!\left( \frac{2\pi j}{K} \right) = 0 \;\; \text{para} \;\; j \not\equiv 0 \!\!\pmod{K} .
+        \end{equation}
+
+        A escolha do núcleo de Fejér, e não do núcleo de Dirichlet, decorre da primeira dessas propriedades. O núcleo de Dirichlet assume valores negativos, o que comprometeria a leitura dos valores esperados como distribuição de probabilidade sobre os nós.
+
+        Para a cidade $V_i$, o veículo $v$ e a posição $r$, define-se o operador de atribuição
+        \begin{equation}\label{eq:form_mod_atribuicao}
+            \hat{a}_{i,v,r} = F_R(\hat{\theta}_i - \theta_r)\, F_M(\hat{\varphi}_i - \varphi_v) ,
+        \end{equation}
+        \noindent que, no nível operatorial, é um polinômio de Laurent {\color{red} confirmar a afirmação} finito em $\hat{U}_i$ e $\hat{V}_i$. Como esses operadores comutam e os coeficientes de Fourier ocorrem em pares adjuntos, $\hat{a}_{i,v,r}$ é limitado e autoadjunto, não havendo ambiguidade de ordenamento em sua definição.
+
+        As atribuições satisfazem
+        \begin{equation}\label{eq:form_mod_completude}
+            \sum_{v=1}^{M} \sum_{r=1}^{R} \hat{a}_{i,v,r} = \hat{\mathbb{I}} ,
+        \end{equation}
+        \noindent e, nos nós da grade, reduzem-se a indicadores exatos, com $a_{i,v,r} \in \{0, 1\}$. Toda cidade ocupa, portanto, exatamente um espaço de rota em uma configuração de grade.
+
+        A ocupação de um espaço de rota é medida por
+        \begin{equation}\label{eq:form_mod_ocupacao}
+            \hat{n}_{v,r} = \sum_{i=1}^{N-1} \hat{a}_{i,v,r} ,
+        \end{equation}
+        \noindent que, nas configurações de grade, assume valores inteiros: nulo para um espaço vazio, unitário para um espaço ocupado por uma única cidade, e $k \geq 2$ quando $k$ cidades colidem no mesmo espaço.
+
+    \subsection{Termo de distância}\label{subsec:form_mod_dist}
+
+        O objetivo de roteamento compreende o deslocamento do depósito à primeira cidade, os deslocamentos entre cidades consecutivas e o retorno da última cidade ao depósito:
+        \begin{equation}\label{eq:form_mod_hdist}
+            \hat{H}_{\text{dist}} = \hat{H}_{\text{saída}} + \hat{H}_{\text{interno}} + \hat{H}_{\text{retorno}} .
+        \end{equation}
+
+        A saída do depósito contabiliza a cidade que ocupa a primeira posição de cada rota,
+        \begin{equation}\label{eq:form_mod_hstart}
+            \hat{H}_{\text{saída}} = \sum_{v=1}^{M} \sum_{i=1}^{N-1} d_{0i}\, \hat{a}_{i,v,1} ,
+        \end{equation}
+        \noindent e os deslocamentos internos somam as distâncias entre cidades em posições consecutivas da mesma rota,
+        \begin{equation}\label{eq:form_mod_hinternal}
+            \hat{H}_{\text{interno}} = \sum_{v=1}^{M} \sum_{r=1}^{R-1}
+            \sum_{\substack{i,j=1 \\ i \neq j}}^{N-1} d_{ij}\, \hat{a}_{i,v,r}\, \hat{a}_{j,v,r+1} .
+        \end{equation}
+
+        O retorno ao depósito apresenta dificuldade adicional, pois a última posição ocupada não é conhecida de antemão. Em configurações de grade livres de colisão, $\hat{\mathbb{I}} - \hat{n}_{v,r+1}$ é um indicador exato de espaço vazio, do que resulta
+        \begin{equation}\label{eq:form_mod_hreturn}
+            \hat{H}_{\text{retorno}} = \sum_{v=1}^{M} \sum_{r=1}^{R-1} \sum_{i=1}^{N-1}
+            d_{i0}\, \hat{a}_{i,v,r} \left( \hat{\mathbb{I}} - \hat{n}_{v,r+1} \right)
+            + \sum_{v=1}^{M} \sum_{i=1}^{N-1} d_{i0}\, \hat{a}_{i,v,R} ,
+        \end{equation}
+        \noindent em que o segundo somatório trata a última posição disponível, para a qual não há posição seguinte a verificar.
+
+        Em configurações de grade livres de colisão e com rotas compactadas à esquerda, $\hat{H}_{\text{dist}}$ coincide exatamente com o custo de deslocamento das rotas decodificadas.
+
+        Cabe observar que o fator $\hat{\mathbb{I}} - \hat{n}_{v,r+1}$ pode assumir valores negativos quando o espaço seguinte contém colisão. A hermiticidade não é afetada, mas a penalidade de colisão deve ser escolhida suficientemente grande para que tais configurações não possam reduzir o mínimo global.
+
+    \subsection{Termos de restrição}\label{subsec:form_mod_restricoes}
+
+        A \emph{colisão} impede que duas cidades ocupem o mesmo espaço de rota:
+        \begin{equation}\label{eq:form_mod_hcol}
+            \hat{H}_{\text{col}} = \sum_{v=1}^{M} \sum_{r=1}^{R} \sum_{i<j}
+            \hat{a}_{i,v,r}\, \hat{a}_{j,v,r} ,
+        \end{equation}
+        \noindent que admite a forma equivalente
+        \begin{equation}\label{eq:form_mod_hcol_alt}
+            \hat{H}_{\text{col}} = \frac{1}{2} \sum_{v,r}
+            \left( \hat{n}_{v,r}^{\,2} - \sum_{i} \hat{a}_{i,v,r}^{\,2} \right) ,
+        \end{equation}
+        \noindent é positivo semidefinido e anula-se nas configurações de grade livres de colisão.
+
+        A \emph{lacuna} exige que as rotas sejam compactadas à esquerda: se o veículo $v$ atende $R_v$ cidades, suas posições ocupadas devem ser $1, 2, \dots, R_v$. A penalidade correspondente é
+        \begin{equation}\label{eq:form_mod_hgap}
+            \hat{H}_{\text{gap}} = \sum_{v=1}^{M} \sum_{r=2}^{R}
+            \hat{n}_{v,r} \left[ (r-1) - \sum_{q=1}^{r-1} \hat{n}_{v,q} \right]^2 ,
+        \end{equation}
+        \noindent que se anula, em configurações de grade livres de colisão, exatamente quando toda rota ocupada é compactada à esquerda.
+
+        O \emph{uso de veículos} apoia-se na observação de que, em uma rota compactada à esquerda, o veículo $v$ está ativo precisamente quando sua primeira posição está ocupada:
+        \begin{equation}\label{eq:form_mod_hveh}
+            \hat{H}_{\text{veh}} = \sum_{v=1}^{M} \left( \hat{n}_{v,1} - \hat{\mathbb{I}} \right)^2 .
+        \end{equation}
+        \noindent O peso associado determina a variante do problema: $\lambda_{\text{veh}} > 0$ exige o emprego dos $M$ veículos, ao passo que $\lambda_{\text{veh}} = 0$ admite que até $M$ veículos sejam utilizados.
+
+        A \emph{capacidade} limita a demanda total atendida por cada veículo. Sendo $q_i$ a demanda da cidade $V_i$ e $Q_v$ a capacidade do veículo $v$, define-se a carga
+        \begin{equation}\label{eq:form_mod_carga}
+            \hat{L}_v = \sum_{i=1}^{N-1} q_i \sum_{r=1}^{R} \hat{a}_{i,v,r} .
+        \end{equation}
+        Definindo a parte positiva de um operador autoadjunto $\hat{A}$ por cálculo funcional espectral, $\hat{A}_+ = \max(\hat{A}, 0)$, a penalidade escreve-se
+        \begin{equation}\label{eq:form_mod_hcap}
+            \hat{H}_{\text{cap}} = \sum_{v=1}^{M}
+            \left[ \left( \hat{L}_v - Q_v \hat{\mathbb{I}} \right)_{+} \right]^{2} ,
+        \end{equation}
+        \noindent operador limitado, autoadjunto e positivo semidefinido, que se anula em uma configuração de grade exatamente quando todo veículo respeita sua capacidade.
+
+    \subsection{Termo de discretização}\label{subsec:form_mod_disc}
+
+        As coordenadas modulares podem assumir valores intermediários entre espaços de rota. Para favorecer a grade discreta, define-se
+        \begin{equation}\label{eq:form_mod_hdisc}
+            \hat{H}_{\text{disc}} = \sum_{i=1}^{N-1}
+            \left[ 2 - \cos\!\left( R\, \hat{\theta}_i \right)
+            - \cos\!\left( M\, \hat{\varphi}_i \right) \right] ,
+        \end{equation}
+        \noindent cuja expressão operatorial decorre de
+        \begin{equation}\label{eq:form_mod_cos}
+            \cos\!\left( R\hat{\theta}_i \right) \equiv \frac{\hat{U}_i^{R} + \hat{U}_i^{-R}}{2} ,
+            \qquad\qquad
+            \cos\!\left( M\hat{\varphi}_i \right) \equiv \frac{\hat{V}_i^{M} + \hat{V}_i^{-M}}{2} ,
+        \end{equation}
+        \noindent de sorte que $0 \leq \hat{H}_{\text{disc}} \leq 4(N-1)$. O termo anula-se em todo nó da grade e é positivo fora dela.
+
+    \subsection{Regularização de energia finita}\label{subsec:form_mod_regularizacao}
+
+        Os zeros de $\hat{H}_{\text{disc}}$ correspondem a valores simultaneamente precisos dos observáveis modulares comutantes. Conforme observado na \autoref{subsec:form_mod_variaveis}, esses estados não são normalizáveis na descrição ideal de dimensão infinita. Um estado físico pode aproximar-se arbitrariamente da grade modular, mas essa aproximação exige dispersão crescente no espaço de fases ordinário e, por conseguinte, número médio de fótons crescente.
+
+        Daí decorre uma distinção entre discretização modular e regularização de energia. O termo $\hat{H}_{\text{disc}}$ solicita que o estado se torne preciso sobre a grade, mas, por si só, não limita quanta energia do oscilador pode ser empregada para alcançar essa localização. Em uma simulação com espaço de Fock truncado, isso conduz o processo de otimização a estados de alto número de fótons, que passam a interagir fortemente com o corte.
+
+        Para um único modo, escrevendo
+        \begin{equation}\label{eq:form_mod_hdisc_mode}
+            \hat{H}^{(i)}_{\text{disc}} = 1 - \cos\!\left( A \hat{x}_i \right)
+            + 1 - \cos\!\left( B \hat{p}_i \right) ,
+            \qquad A = \frac{2\pi R}{a} , \quad B = \frac{2\pi M}{b} ,
+        \end{equation}
+        \noindent a análise de estados de grade de energia finita fornece o comportamento assintótico
+        \begin{equation}\label{eq:form_mod_assintotico}
+            E_{\text{disc}}(\bar{n}) \sim \frac{C}{\bar{n}} ,
+            \qquad C = \frac{(A+B)^2}{16} ,
+        \end{equation}
+        \noindent para número médio de fótons $\bar{n}$ grande. A energia de discretização pode, portanto, continuar decrescendo indefinidamente à medida que o número de fótons aumenta. Para a escolha simétrica da \autoref{eq:form_mod_rede} com $\hbar = 1$, obtém-se
+        \begin{equation}\label{eq:form_mod_C}
+            C = \frac{\pi}{8} (R + M)^2 .
+        \end{equation}
+
+        Para manter a otimização em uma região de energia finita do espaço de Hilbert, acrescenta-se um termo explícito de número de fótons. Sendo
+        \begin{equation}\label{eq:form_mod_nph}
+            \hat{n}_i = \hat{a}_i^{\dagger} \hat{a}_i
+            = \frac{1}{2\hbar} \left( \hat{x}_i^2 + \hat{p}_i^2 \right) - \frac{1}{2} ,
+        \end{equation}
+        \noindent define-se
+        \begin{equation}\label{eq:form_mod_hph}
+            \hat{H}_{\text{ph}} = \sum_{i=1}^{N-1} \hat{n}_i ,
+        \end{equation}
+        \noindent e a contribuição regularizada de discretização passa a ser $\lambda_{\text{disc}} \hat{H}_{\text{disc}} + \lambda_{\text{ph}} \hat{H}_{\text{ph}}$, com $\lambda_{\text{ph}} > 0$.
+
+        Os dois termos têm papéis complementares. O de discretização favorece estados concentrados nas proximidades da grade modular, ao passo que o de número de fótons penaliza estados que alcançam essa concentração por emprego de energia arbitrariamente alta. O segundo deve ser entendido como regularizador da representação em variáveis contínuas, e não como restrição adicional de viabilidade do VRP.
+
+        A relação assintótica da \autoref{eq:form_mod_assintotico} fornece ainda uma escala para a escolha de $\lambda_{\text{ph}}$. Para um modo, a competição dominante é
+        \begin{equation}\label{eq:form_mod_competicao}
+            \lambda_{\text{disc}} \frac{C}{\bar{n}} + \lambda_{\text{ph}} \bar{n} ,
+        \end{equation}
+        \noindent cuja minimização fornece
+        \begin{equation}\label{eq:form_mod_nstar}
+            \bar{n}^{*} \sim \sqrt{\frac{\lambda_{\text{disc}}\, C}{\lambda_{\text{ph}}}} .
+        \end{equation}
+        \noindent O peso $\lambda_{\text{ph}}$ pode, assim, ser escolhido de modo que o número característico de fótons permaneça confortavelmente abaixo do corte de Fock adotado. Trata-se de estimativa assintótica, e não de prescrição exata, pois o Hamiltoniano completo contém termos de penalização adicionais que interagem entre si.
+
+    \subsection{Hamiltoniano completo}\label{subsec:form_mod_hamiltoniano}
+
+        Reunindo o objetivo de roteamento, as restrições do VRP, a discretização modular e a regularização de energia finita, obtém-se
+        \begin{equation}\label{eq:form_mod_total}
+            \begin{aligned}
+                \hat{H}_{\text{VRP}}^{(\text{reg})}  = & \  \hat{H}_{\text{dist}}
+                + \lambda_{\text{col}} \hat{H}_{\text{col}}
+                + \lambda_{\text{gap}} \hat{H}_{\text{gap}}
+                + \lambda_{\text{veh}} \hat{H}_{\text{veh}}
+                + \\ & 
+                \lambda_{\text{cap}} \hat{H}_{\text{cap}}
+                + \lambda_{\text{disc}} \hat{H}_{\text{disc}}
+                + \lambda_{\text{ph}} \hat{H}_{\text{ph}} .
+            \end{aligned}
+        \end{equation}
+
+        É conveniente separar conceitualmente esse Hamiltoniano em duas partes,
+        \begin{equation}\label{eq:form_mod_separacao}
+            \hat{H}_{\text{VRP}}^{(\text{reg})} = \hat{H}_{\text{mod}}
+            + \lambda_{\text{ph}} \hat{H}_{\text{ph}} ,
+        \end{equation}
+        \noindent em que $\hat{H}_{\text{mod}}$ reúne os termos de distância, restrição e discretização. Todos esses termos são funções limitadas dos operadores de Weyl mutuamente comutantes $\{\hat{U}_i, \hat{V}_i\}$ e são, por conseguinte, simultaneamente diagonalizáveis na representação modular ideal.
+
+        O operador número tem natureza distinta. Ele é positivo e ilimitado no espaço de Fock de dimensão infinita, e em geral não comuta com os operadores de Weyl modulares. Em consequência, o Hamiltoniano completo deixa de ser um operador de custo limitado e comutante, e passa a ser um Hamiltoniano de otimização de energia finita, não comutante. Como a parte modular limitada é somada ao operador número de fótons, positivo e autoadjunto, o Hamiltoniano regularizado permanece limitado inferiormente e é definido naturalmente no domínio de $\hat{H}_{\text{ph}}$.
+
+        Essa modificação altera ligeiramente o papel atribuído à otimização. Sem a regularização, o Hamiltoniano modular ideal descreve a paisagem de energia do VRP diretamente sobre o toro das fases modulares. Com $\lambda_{\text{ph}} > 0$, a otimização passa a solicitar, adicionalmente, uma realização física de baixa energia para aquela configuração modular. A energia do estado fundamental regularizado não precisa, portanto, coincidir exatamente com o custo ótimo $C^{\ast}$ do VRP. A grandeza empregada para recuperar a solução combinatória é a rota decodificada, e não o valor absoluto da energia regularizada.
+
+        Na prática, $\lambda_{\text{ph}}$ deve ser grande o suficiente para suprimir estados de alto número de fótons que buscam o corte, e pequeno o suficiente para que a estrutura modular dos espaços de rota permaneça bem resolvida. A convergência deve, por conseguinte, ser verificada conjuntamente no corte de Fock e em $\lambda_{\text{ph}}$, acompanhada de diagnósticos como o número médio de fótons e a massa de probabilidade nas proximidades do corte.
+
+    \subsection{Representação em dimensão finita}\label{subsec:form_mod_truncagem}
+
+        A construção apresentada até aqui é exata no espaço de Hilbert de dimensão infinita, no qual $[\hat{U}_i, \hat{V}_i] = 0$ e os produtos de operadores de atribuição não apresentam ambiguidade de ordenamento. A representação numérica exige, porém, a truncagem do espaço de Fock a uma dimensão finita $d$, e essa truncagem tem consequências que convém registrar.
+
+        A relação de Weyl da \autoref{eq:form_mod_weyl_rel} apoia-se na relação canônica de comutação, que não é preservada pelos operadores de posição e momento truncados. Em consequência, os operadores $\hat{U}_i$ e $\hat{V}_i$ representados em dimensão finita não comutam exatamente, e a violação concentra-se nos níveis de Fock mais altos, onde a truncagem atua. A codificação permanece fiel em um subespaço de baixa energia, cuja extensão cresce com $d$.
+
+        Daí decorrem duas exigências de implementação. A primeira é que os operadores de Weyl sejam construídos a partir dos elementos de matriz exatos do operador de deslocamento, e não pela exponenciação de quadraturas previamente truncadas, procedimento que amplifica desnecessariamente a violação da comutação. A segunda é que os produtos de operadores que atuam sobre um mesmo modo sejam simetrizados, de modo a preservar as propriedades que a construção exata lhes assegura: a hermiticidade, por meio do anticomutador nos termos de custo, e adicionalmente a positividade semidefinida, por meio da forma de sanduíche nos termos de penalização. Em ambos os casos, as expressões simetrizadas convergem às da construção exata à medida que $d$ cresce.
+
+        A escolha de $d$ é, assim, um parâmetro da representação, e não da codificação. Sua determinação é objeto do \autoref{cap:resultados}.
+
+    \subsection{Decodificação da solução}\label{subsec:form_mod_decodificacao}
+
+        A solução é decodificada por medição conjunta dos observáveis modulares comutantes associados a $\hat{U}_i$ e $\hat{V}_i$. Sendo $(\theta_i, \varphi_i) \in [0, 2\pi)^2$ as autofases conjuntas medidas para a cidade $V_i$, os índices de posição e de veículo mais próximos são
+        \begin{equation}\label{eq:form_mod_decod_r}
+            r_i = \left( \operatorname{round}\!\left( \frac{R\,\theta_i}{2\pi} \right) \bmod R \right) + 1 ,
+        \end{equation}
+        \begin{equation}\label{eq:form_mod_decod_v}
+            v_i = \left( \operatorname{round}\!\left( \frac{M\,\varphi_i}{2\pi} \right) \bmod M \right) + 1 ,
+        \end{equation}
+        \noindent e as cidades atribuídas a um mesmo veículo são ordenadas segundo $r_i$.
+
+        Os dois valores modulares devem corresponder à \emph{mesma} amostra conjunta. Medições independentes de $\hat{x}$ e $\hat{p}$ em disparos experimentais distintos não preservam a correlação, no nível de cada cidade, entre a posição na rota e a atribuição de veículo.
+
+        Uma solução decodificada é válida quando toda cidade é atribuída a um espaço de rota, nenhum par de cidades ocupa o mesmo espaço, cada cidade aparece exatamente uma vez, as posições ocupadas de cada veículo são compactadas à esquerda, todo veículo atende ao menos uma cidade quando seu uso é obrigatório, e a demanda total atribuída a cada veículo não excede sua capacidade. A primeira e a terceira condições decorrem da codificação de um qumode por cidade e da regra de decodificação. As demais são representadas, respectivamente, por $\hat{H}_{\text{col}}$, $\hat{H}_{\text{gap}}$, $\hat{H}_{\text{veh}}$ e $\hat{H}_{\text{cap}}$. O termo de discretização não representa condição de viabilidade do VRP: ele controla a interpolação contínua entre espaços de rota discretos.
+
+    \subsection{Natureza do recurso empregado}\label{subsec:form_mod_recurso}
+
+        Convém explicitar em que medida esta codificação se distingue da anterior, e qual o alcance dessa distinção.
+
+        Todos os operadores que compõem $\hat{H}_{\text{mod}}$ são construídos a partir de potências de $\hat{U}_i$ e $\hat{V}_i$, que são deslocamentos no espaço de fases. Os núcleos de Fejér são combinações lineares dessas potências, e o termo de discretização é combinação de $\hat{U}_i^{R}$ e $\hat{V}_i^{M}$. A codificação opera, portanto, na álgebra de Weyl-Heisenberg, e não na base própria do operador número.
+
+        A distinção não é de notação. Na \autoref{sec:form_fock}, o nível de ocupação funciona como rótulo discreto, e a estrutura canônica do modo não desempenha papel algum, de sorte que a codificação é redutível a um sistema de níveis discretos. Aqui, a possibilidade de atribuir dois rótulos independentes a um mesmo modo depende diretamente da \autoref{prop:form_mod_comutacao}, isto é, de uma propriedade das relações canônicas de comutação que não possui análogo em sistemas de dimensão finita.
+
+        Quanto ao custo da representação, uma modelagem discreta direta do mesmo problema introduziria variáveis binárias $y_{i,v,r} \in \{0,1\}$, indicando que a cidade $V_i$ é atendida pelo veículo $v$ na posição $r$, totalizando $(N-1)MR$ variáveis. A codificação modular emprega $N-1$ qumodes. Como cada qumode codifica um entre $MR$ espaços de rota por meio de um par de valores modulares, o conteúdo de informação discreta é comparável a $(N-1)\log_2(MR)$ bits, em contraste com $(N-1)MR$ variáveis binárias.
+
+        Essa comparação exprime compacidade de codificação, e não aceleração computacional. Um qumode físico requer recursos crescentes de espaço de fases e de número de fótons para resolver de maneira confiável um número crescente de espaços modulares, e o espaço de configurações discretas permanece de cardinalidade $(MR)^{N-1}$, cuja enumeração exaustiva é exponencial em $N$.
+
+        Convém, por fim, ser explícito quanto ao alcance da proposta. Como $\hat{H}_{\text{mod}}$ é função exclusiva de operadores de Weyl mutuamente comutantes, ele é diagonal em sua representação espectral conjunta, define uma paisagem de energia sobre o toro $\mathbb{T}^{2(N-1)}$ e seu valor em uma configuração modular especificada pode ser avaliado classicamente. A dimensão elevada do espaço de Hilbert e a compacidade da codificação não estabelecem, por si sós, vantagem computacional quântica. Esta exigiria um protocolo de otimização cuja dinâmica não comutante explorasse superposição, interferência, tunelamento ou emaranhamento para localizar configurações de baixa energia de modo mais eficiente que métodos clássicos adequados.
+
+        A separação entre posição na rota e identidade do veículo nas duas quadraturas modulares oferece, nesse sentido, estrutura natural para Hamiltonianos de mistura. O operador
+        \begin{equation}\label{eq:form_mod_mixer_pos}
+            \hat{H}_{\text{mist}}^{\text{pos}} = - \sum_{i=1}^{N-1}
+            \cos\!\left( \frac{a}{R\hbar}\, \hat{p}_i \right)
+        \end{equation}
+        \noindent gera translações de $\hat{x}_i$ da ordem de um espaçamento de posição $a/R$, preservando funções de $\hat{p}_i$, ao passo que
+        \begin{equation}\label{eq:form_mod_mixer_veh}
+            \hat{H}_{\text{mist}}^{\text{veíc}} = - \sum_{i=1}^{N-1}
+            \cos\!\left( \frac{b}{M\hbar}\, \hat{x}_i \right)
+        \end{equation}
+        \noindent gera translações de $\hat{p}_i$ da ordem de um espaçamento de veículo $b/M$, preservando funções de $\hat{x}_i$. Tais operadores não comutam com o Hamiltoniano de custo completo e podem, por conseguinte, induzir dinâmica entre configurações candidatas. Sua realização física e seu desempenho algorítmico constituem questões distintas da validade do Hamiltoniano de custo, e não são tratados neste trabalho.
+
+        Observa-se, por fim, que o número de modos permanece $N-1$, idêntico ao da codificação anterior, ainda que o problema representado seja estritamente mais geral. A extensão do TSP ao VRP capacitado é obtida sem acréscimo de modos, por utilização da quadratura que permanecia ociosa.
