@@ -1,85 +1,113 @@
 \chapter{Metodologia} \label{cap:proposta}
 
-    A metodologia adotada neste trabalho estrutura-se de forma progressiva, articulando modelagem matemática, implementação computacional e análise de desempenho com vistas ao refinamento do formalismo proposto. Essa progressão organiza-se em duas etapas: uma primeira fase de verificação de viabilidade, já concluída e com resultados preliminares obtidos, dedicada à construção e validação dos Hamiltonianos propostos; e uma segunda fase, em desenvolvimento, voltada à implementação de algoritmos de otimização quântica variacional sobre os formalismos estabelecidos.
+    Este capítulo descreve os procedimentos empregados para avaliar as codificações construídas no \autoref{cap:formulacao}. A apresentação restringe-se aos métodos: o que foi observado por meio deles é objeto do \autoref{cap:resultados}.
 
-    Inicialmente, o trabalho concentrou-se na construção de Hamiltonianos capazes de representar problemas de otimização combinatória em um contexto de computação quântica de variáveis contínuas. Essa etapa teve como propósito estabelecer uma correspondência entre a estrutura do problema e sua codificação em operadores compatíveis com sistemas quânticos de variáveis contínuas.
+\section{Delineamento}\label{sec:met_delineamento}
 
-    O TSP foi adotado, nesse contexto, como problema base para validação, por constituir uma instância clássica de otimização combinatória com estrutura suficientemente rica para testar o método \cite{hartmanis1982computers}, mas com complexidade ainda tratável do ponto de vista analítico e computacional. Como ponto de partida, foi considerada uma primeira abordagem baseada em uma correspondência direta entre a modelagem discreta usual e o formalismo de variáveis contínuas. Nesse contexto, cada qubit, originalmente associado a uma variável binária no modelo clássico, foi mapeado para um qumode, de modo a reproduzir o comportamento discreto esperado \cite{verdon2019quantum}.
+    As simulações realizadas respondem a três perguntas distintas, que exigem instrumentos diferentes e admitem respostas independentes.
 
-    Para isso, foi construído um Hamiltoniano análogo ao utilizado em formulações do tipo QUBO em qubits \cite{lucas2014ising}. Considera-se um conjunto de $N$ cidades em um grafo, com $d_{ij}$ representando a distância entre as cidades $i$ e $j$, e define-se a variável binária
+    A primeira diz respeito à codificação: o espectro do Hamiltoniano contém a solução do problema, isto é, o estado de energia mínima, uma vez decodificado, corresponde a uma solução ótima? A resposta é obtida por diagonalização exata, sem envolvimento de qualquer algoritmo de otimização.
 
-    $$
-    x_{i,k} =
-    \begin{cases}
-    1, & \text{se a cidade $i$ é visitada na posição $k$},\\
-    0, & \text{caso contrário}.
-    \end{cases}
-    $$
+    Em relação ao algoritmo, coloca-se a segunda questão: será que um procedimento variacional consegue preparar esse estado aproximadamente? Essa resposta não decorre diretamente da anterior, uma vez que uma codificação correta pode permanecer inacessível a estados parametrizados de profundidade finita.
 
-    A função objetivo do TSP pode então ser escrita como:
+    Resta o custo da representação, medido em número de modos, dimensão de truncamento e dimensão do espaço de estados. Essa terceira questão é comparativa entre as três codificações e admite tratamento parcialmente analítico.
 
-    $$
-        \label{eq:objective_function_hamiltonian}
-        H = \sum_{k=1}^N \sum_{i=1}^N \sum_{j=1}^N d_{ij}\, x_{i,k} x_{j,k+1}
-    $$
+    Separar essas questões é fundamental. Sem isso, as falhas observadas, sejam elas devidas ao processo de otimização ou a limitações da codificação, não poderiam ser atribuídas à sua origem, o que comprometeria as conclusões do trabalho.
 
-    Sujeito às restrições:
+\section{Instâncias}\label{sec:met_instancias}
 
-    \begin{enumerate}
-        \item Cada posição deve conter exatamente uma cidade:
-        $$
-            \sum_{i=1}^N x_{i,k} = 1, \qquad \forall k
-        $$
+    As instâncias são grafos completos com pesos, gerados computacionalmente a partir de semente fixa, de modo que toda execução relatada neste trabalho seja reproduzível. A semente é registrada junto aos resultados, e a mesma instância é empregada em todas as configurações comparadas, para que diferenças observadas não sejam atribuíveis à variação do problema.
 
-        \item Cada cidade deve ser visitada exatamente uma vez:
-        $$
-            \sum_{k=1}^N x_{i,k} = 1, \qquad \forall i
-        $$
-    \end{enumerate}
+    A exigência de grafos completos não restringe a classe de instâncias tratadas. Um grafo não completo é completado atribuindo-se a cada aresta ausente um peso $W$ suficientemente grande para que nenhuma solução ótima a utilize, procedimento usual em problemas de roteamento \cite{reinelt2001traveling, hahsler2008tsp}. Como uma solução viável do grafo original percorre cada aresta no máximo duas vezes, o que ocorre em rotas de uma única cidade, é suficiente tomar $W$ superior ao dobro da soma dos pesos das arestas existentes: qualquer solução que empregue uma aresta ausente custa então mais que qualquer solução que a evite, e as soluções ótimas do grafo completado coincidem com as do original. Se o grafo original não admite nenhuma solução que use apenas arestas existentes, o custo ótimo do grafo completado ultrapassa esse limiar, o que sinaliza a inviabilidade. Cabe observar que $W$ integra $d_{\max}$ e, portanto, a cota da \autoref{prop:form_fock_corretude}, de modo que valores desnecessariamente elevados exigem pesos de penalização igualmente elevados.
 
-    No contexto de variáveis contínuas, as variáveis discretas $x_{i,k}$ são substituídas por operadores $\hat{x}_{i,k}$ associados aos qumodes. Introduzem-se, adicionalmente, os operadores canônicos de posição $\hat{x}_{i,k}$ e momento $\hat{p}_{i,k}$, satisfazendo as relações de comutação \cite{weedbrook2012gaussian, verdon2019quantum}:
+    As demandas das cidades são atribuídas no momento da geração. As capacidades dos veículos não são sorteadas de forma independente: elas são construídas a partir da demanda total, de modo que a instância admita sempre ao menos uma solução viável. Instâncias sem solução viável não informam sobre a qualidade da codificação, apenas sobre a severidade das restrições.
 
-    $$
-    [\hat{x}_{i,k}, \hat{p}_{j,l}] = i\hbar\,\delta_{ij}\delta_{kl}.
-    $$
-    \noindent adota-se, para simplificação algébrica, a convenção $\hbar=1$. Uma vez que o operador posição possui espectro contínuo, impõe-se um comportamento efetivamente binário por meio da transformação \cite{arrazola2019machine}
+    As instâncias de um único veículo recebem tratamento próprio, e não apenas por serem menores. Conforme estabelecido na \autoref{sec:form_modular}, o Hamiltoniano modular contém o TSP como caso particular, obtido ao se tomar $M = 1$, sem que nenhum de seus termos seja alterado. A mesma construção é, portanto, submetida às duas variantes do problema, e o acerto observado no caso de um veículo atesta a codificação de maneira independente dos resultados obtidos com frota maior.
 
-    $$
-    \hat{x}_{i,k} = \frac{1 + \hat{x}'_{i,k}}{2},
-    $$
+    Essas instâncias desempenham, além disso, o papel de controle. Com um único veículo existe uma única distribuição possível das cidades entre rotas, de sorte que as configurações válidas se distinguem apenas pela ordem de atendimento. Efeitos que dependam da comparação entre distribuições distintas não se manifestam nesse regime, o que permite isolá-los quando presentes nos demais.
 
-    \noindent de modo que $\hat{x}'_{i,k} \approx \pm 1$ corresponde a $\hat{x}_{i,k} \in \{0,1\}$. Essa restrição é imposta energeticamente através de um potencial de poço duplo \cite{weedbrook2012gaussian}:
+    O peso $\lambda_{\text{cap}}$ acompanha a variante tratada: é nulo quando se considera um único veículo, caso em que a restrição de capacidade não se aplica, e positivo quando há mais de um veículo, configurando o problema capacitado.
 
-    $$
-    H_{\text{bin}} = \sum_{i,k} \left( (\hat{x}'_{i,k})^2 - 1 \right)^2.
-    $$
+    O tamanho das instâncias é limitado a nove vértices. Essa limitação não decorre somente do custo da simulação quântica, que cresce com o número de vértices e esbarra na capacidade computacional disponível para este trabalho, mas também da estratégia de verificação adotada: até essa ordem de grandeza, a enumeração exaustiva clássica percorre a totalidade do espaço de soluções em tempo viável e fornece, além do custo ótimo, o conjunto completo das soluções que o atingem. É essa disponibilidade que permite verificar se a solução recuperada da simulação pertence ao conjunto ótimo, e não apenas se seu custo é próximo. Instâncias dessa ordem são suficientes para o propósito do trabalho, que é validar a codificação, e não explorar o limite de escala dos métodos.
 
-    Além disso, considera-se um termo cinético \cite{verdon2019quantum} dado por:
+\section{Referência clássica e verificação exata}\label{sec:met_referencia}
 
-    $$
-    \sum_{i,k} \frac{\hat{p}_{i,k}^2}{2m}.
-    $$
+    \subsection{Enumeração exaustiva}\label{subsec:met_forca_bruta}
 
-    Dessa forma, o Hamiltoniano completo do sistema é definido como:
+        A referência clássica é obtida por enumeração exaustiva. O procedimento percorre as permutações das cidades e, no caso de múltiplos veículos, as partições dessas permutações entre as rotas, descartando as atribuições que violem as restrições de estrutura ou de capacidade e retendo o custo mínimo e todas as atribuições que o atingem. A enumeração é conduzida de forma independente da codificação quântica: ela opera diretamente sobre rotas, sem recorrer ao Hamiltoniano nem à regra de decodificação.
 
-    \begin{equation}
-    \begin{aligned}
-    H &= \sum_{k=1}^N \sum_{i=1}^N \sum_{j=1}^N d_{ij}\, \hat{x}_{i,k}\hat{x}_{j,k+1}
-        + \alpha \sum_{i,k} \left( (\hat{x}'_{i,k})^2 - 1 \right)^2 \\
-        &\quad + \beta \sum_{i=1}^N \left(\sum_{k=1}^N \hat{x}_{i,k} - 1 \right)^2
-        + \gamma \sum_{k=1}^N \left(\sum_{i=1}^N \hat{x}_{i,k} - 1 \right)^2
-        + \sum_{i,k} \frac{\hat{p}_{i,k}^2}{2m},
-    \end{aligned}
-    \end{equation}
+        A comparação entre soluções é feita em forma canônica, de modo a absorver as simetrias que não constituem distinção: a inversão do sentido de percurso, quando a matriz de distâncias é simétrica, e a permutação dos rótulos dos veículos.
 
-    \noindent onde $\alpha$, $\beta$, $\gamma$ e $m$ são hiperparâmetros do modelo \cite{lucas2014ising}. A solução do problema é obtida pela minimização do valor esperado do Hamiltoniano:
+    \subsection{Diagonalização}\label{subsec:met_diagonalizacao}
 
-    \begin{equation}
-    \min_{\psi \in \mathcal{H}} \bra{\psi} H \ket{\psi}.
-    \end{equation}
+        Para instâncias cuja dimensão o permita, o Hamiltoniano é representado explicitamente no espaço de Fock truncado e diagonalizado, fornecendo a energia do estado fundamental, denotada $E_0$, e o próprio estado.
 
-    Essa formulação inicial teve como principal objetivo verificar a consistência da representação com variáveis contínuas em relação aos modelos tradicionais. Para isso, os resultados obtidos foram comparados tanto com soluções provenientes de uma busca exaustiva clássica quanto com implementações do Hamiltoniano equivalente em qubits, formulação da qual o modelo de qumodes deriva diretamente, por substituição das variáveis binárias por operadores de posição com comportamento binário imposto energeticamente. Em ambos os casos, os estados de energia mínima encontrados no modelo com qumodes coincidiram com os das abordagens de referência, indicando que a modelagem proposta preserva corretamente a estrutura do problema.
+        Essa grandeza desempenha dois papéis. Ela estabelece se a codificação é correta, por meio da decodificação do estado fundamental e sua comparação com o conjunto ótimo. E fornece o limite inferior contra o qual o desempenho do algoritmo variacional é medido, uma vez que nenhum estado parametrizado pode atingir energia inferior a $E_0$.
 
-    A formulação descrita constitui a primeira etapa metodológica deste trabalho, tendo sido desenvolvida com o propósito de verificar a viabilidade da representação de problemas combinatórios no formalismo de variáveis contínuas, antes de avançar para codificações mais naturais ao paradigma de qumodes. Os resultados obtidos com essa modelagem, bem como a análise comparativa com as abordagens de referência em qubits e busca exaustiva clássica, são apresentados e discutidos no \autoref{cap:resultados}.
-    
-    
+        A dimensão do espaço de estados cresce como $d^{N-1}$, e a matriz a ser diagonalizada tem essa dimensão ao quadrado, o que estabelece o limite de aplicabilidade do procedimento. Os valores adotados são registrados na \autoref{tab:met_parametros}.
+
+    \subsection{Avaliador de estados-produto}\label{subsec:met_fatorado}
+
+        A diagonalização torna-se inviável para dimensões de truncamento elevadas. Para estender o alcance da análise, emprega-se um avaliador que calcula o valor esperado do Hamiltoniano em estados-produto sem formar o tensor completo.
+
+        O procedimento apoia-se na fatoração que decorre de os modos serem distintos. Para um estado da forma $\ket{\Psi} = \bigotimes_i \ket{\phi_i}$, o valor esperado de um produto ordenado de operadores de um modo fatora cidade a cidade, de sorte que cada termo do Hamiltoniano é expresso como polinômio nos momentos de um único modo. O custo por configuração reduz-se de $O(d^{N-1})$ a $O(N^2)$, após um pré-cálculo que independe da configuração avaliada.
+
+        O avaliador é verificado contra o cálculo direto do valor esperado, em estados-produto aleatórios e em estados centrados nos nós da grade modular, para todas as combinações de parâmetros empregadas. A concordância exigida é da ordem da precisão de máquina.
+
+        Cabe registrar a limitação do método. Um estado-produto não é o estado fundamental, que em geral apresenta correlação entre os modos. O avaliador fornece, portanto, uma aproximação cuja fidelidade deve ser aferida: adota-se, para esse fim, a comparação entre a solução de menor energia segundo o avaliador e a solução decodificada do estado fundamental, nas dimensões em que ambos são computáveis.
+
+\section{Determinação dos pesos}\label{sec:met_pesos}
+
+    Os pesos que acompanham os termos de penalização não são escolhidos por tentativa. O ponto de partida é a cota estabelecida na \autoref{prop:form_fock_corretude}, segundo a qual valores superiores a $N\,d_{\max}$ são suficientes para que toda configuração inválida possua energia superior à da melhor solução válida.
+
+    Essa cota é suficiente, mas sua necessidade não está estabelecida. O procedimento adotado consiste, por conseguinte, em verificar se valores inferiores preservam a corretude da codificação, por meio de varredura sobre os pesos com diagonalização exata a cada ponto. O critério de aprovação é o mesmo da \autoref{subsec:met_diagonalizacao}: a decodificação do estado fundamental deve pertencer ao conjunto ótimo obtido por enumeração exaustiva.
+
+    Dois pesos recebem tratamento distinto, por não representarem restrições do problema. O peso $\lambda_{\text{disc}}$, associado ao termo de discretização, controla a aderência das variáveis modulares aos nós da grade. O peso $\lambda_{\text{ph}}$, associado ao número de fótons, controla a extensão do estado no espaço de fases. Sua calibração conjunta orienta-se pela relação assintótica estabelecida na \autoref{eq:form_mod_nstar}, que fornece o número característico de fótons resultante de uma dada razão entre os dois, e pela exigência de que esse valor permaneça abaixo da dimensão de truncamento adotada.
+
+    A dimensão de truncamento é tratada como parâmetro experimental, e não como constante da implementação. São consideradas tanto dimensões iguais ao número de cidades, por analogia com a codificação da \autoref{sec:form_fock}, quanto valores superiores. A hipótese sob verificação é a de que dimensões maiores produzem soluções de melhor qualidade, em virtude da resolução crescente das variáveis modulares.
+
+    % TODO: inserir tab:met_parametros com os valores adotados em cada experimento,
+    % remetendo à seção do capítulo de resultados em que foram determinados.
+
+\section{Protocolo variacional}\label{sec:met_vqe}
+
+    \subsection{Circuito e otimização}\label{subsec:met_circuito}
+
+        O estado parametrizado é preparado por um circuito organizado em camadas, cada uma composta por compressão, rotação, mistura entre modos adjacentes, deslocamento e uma operação não gaussiana. O número de camadas, denotado $L$, é tratado como parâmetro experimental.
+
+        A otimização dos parâmetros é conduzida pelo método ADAM. O número de iterações, a taxa de aprendizado e a dimensão de truncamento constituem parâmetros do protocolo, e sua variação integra os experimentos relatados.
+
+        O tempo de execução não é adotado como critério de avaliação. As simulações são conduzidas em computador clássico, de modo que o custo observado reflete a simulação do sistema quântico, e não o custo de execução do algoritmo em um dispositivo de variáveis contínuas.
+
+    \subsection{Decodificação}\label{subsec:met_decodificacao}
+
+        A recuperação da solução a partir do estado preparado segue a regra estabelecida na \autoref{subsec:form_mod_decodificacao}: a cada cidade associa-se o nó mais próximo das variáveis modulares medidas, do que resultam a posição na rota e o veículo responsável.
+
+        Como uma mesma rota pode ser obtida de mais de uma configuração, a decisão não é tomada sobre configurações isoladas. Agrega-se a probabilidade de todas as configurações que decodificam para a mesma rota, e adota-se a rota de maior probabilidade agregada. O critério é, assim, de máximo, e não depende da fixação de qualquer limiar.
+
+    \subsection{Critérios de avaliação}\label{subsec:met_criterios}
+
+        O desempenho do algoritmo variacional é avaliado por dois critérios independentes, ambos relatados.
+
+        O primeiro é o acerto combinatório: verifica-se se a rota decodificada pertence ao conjunto ótimo obtido por enumeração exaustiva. Trata-se de critério binário por instância, que não envolve comparação de energias.
+
+        O segundo é a proximidade do estado fundamental, medida pela diferença $\langle \hat{H} \rangle - E_0$ e pela fidelidade $|\braket{\psi_0}{\psi}|^2$, em que $\ket{\psi_0}$ denota o estado fundamental obtido por diagonalização.
+
+        Os dois critérios respondem a perguntas distintas e podem divergir. O primeiro mede a recuperação da solução do problema combinatório; o segundo, a capacidade do estado parametrizado de aproximar o estado fundamental. Quando a divergência ocorre, ela é informativa, e é relatada como tal.
+
+    \subsection{Apresentação dos resultados}\label{subsec:met_apresentacao}
+
+        Para cada instância, caracterizada pelo número de cidades, pelo número de veículos e pelo número de camadas, são apresentados a curva de convergência da energia ao longo das iterações, acompanhada do custo ótimo obtido por enumeração exaustiva e da energia do estado fundamental; a representação do grafo da instância; e a representação do mesmo grafo com a solução recuperada.
+
+        Os valores numéricos correspondentes são reunidos em tabela. A comparação entre o custo da rota decodificada e o custo ótimo recebe tratamento próprio, por constituir a medida direta do acerto combinatório.
+
+\section{Implementação}\label{sec:met_implementacao}
+
+    % TODO: dividir por etapa quando confirmado.
+    % Etapa 1 (mapeamento direto QUBO): QuTiP.
+    % Etapa 2 (codificação posicional): scipy.sparse para a montagem do Hamiltoniano
+    %          e Strawberry Fields para o circuito.
+    % Etapa 3 (codificação modular): Strawberry Fields com backend TensorFlow.
+    % Confirmar versões e o ambiente de execução de cada etapa.
+
+    As implementações das três codificações recorreram a bibliotecas distintas, acompanhando a evolução dos requisitos de cada uma. A construção dos operadores modulares, por sua vez, exigiu cuidado específico: os operadores de Weyl são obtidos a partir dos elementos de matriz exatos do operador de deslocamento, e não pela exponenciação de quadraturas previamente truncadas, conforme discutido na \autoref{subsec:form_mod_truncagem}.
