@@ -248,9 +248,11 @@
 
     \subsection{Inversão da convenção de índice}\label{subsec:form_mod_convencao}
 
-        Antes de prosseguir, cabe registrar uma mudança de convenção em relação à \autoref{sec:form_fock}. Na codificação posicional, o índice do modo designa a posição no percurso e o nível de ocupação identifica a cidade. Para o TSP, essa escolha é equivalente à inversa, pois ambas descrevem permutações e diferem apenas por qual conjunto é tomado como domínio.
+        Antes de prosseguir, cabe registrar uma mudança de convenção em relação à \autoref{sec:form_fock}.
 
-        A equivalência finaliza quando se admitem múltiplos veículos. O veículo é atribuído à cidade, e não à posição: cada cidade é atendida por um veículo, enquanto uma mesma posição ordinal existe em todas as rotas. Para que o atributo adicional possa ser associado ao modo, é necessário que o modo represente a cidade. Adota-se, portanto, a convenção:
+        Na codificação posicional, o índice do modo designa a posição no percurso e o nível de ocupação identifica a cidade. Para o TSP, essa escolha é equivalente à inversa, pois ambas descrevem permutações e diferem apenas por qual conjunto é tomado como domínio.
+
+        A equivalência cessa quando se admitem múltiplos veículos. O veículo é atribuído \emph{à cidade}, e não à posição: cada cidade é atendida por um veículo, enquanto uma mesma posição ordinal existe em todas as rotas. Para que o atributo adicional possa ser associado ao modo, é necessário que o modo represente a cidade. Adota-se, portanto, a convenção:
 
         \begin{quote}
             cada cidade $V_i$, com $i \in \{1, \dots, N-1\}$, é representada por um qumode, cujas variáveis modulares de posição e de momento codificam, respectivamente, a posição de atendimento na rota e o veículo responsável.
@@ -260,13 +262,13 @@
 
     \subsection{Espaços de rota e cotas de dimensionamento}\label{subsec:form_mod_slots}
 
-        Define-se espaço de rota como o par ordenado
+        Define-se \emph{espaço de rota} como o par ordenado
         \begin{equation}\label{eq:form_mod_slot}
             (v, r), \qquad v \in \{1, \dots, M\}, \quad r \in \{1, \dots, R\} ,
         \end{equation}
         \noindent em que $v$ identifica o veículo e $r$ a posição ocupada na rota desse veículo. Para fins de registro, o par admite o rótulo escalar $s(v,r) = (v-1)R + r$, que não constitui, porém, a codificação física: veículo e posição permanecem graus de liberdade modulares distintos.
 
-        O número de posições por veículo não precisa ser tomado igual a $N-1$. Quando todos os veículos são obrigatórios, vale 
+        O número de posições por veículo não precisa ser tomado igual a $N-1$. Quando todos os veículos são obrigatórios, vale a cota
         \begin{equation}\label{eq:form_mod_R}
             R = \min\left\{ N-1, \;
             \left\lfloor \frac{\max_v Q_v}{\min_i q_i} \right\rfloor, \;
@@ -293,8 +295,6 @@
             \end{equation}
         \end{prop}
 
-        {\color{red} REVER A DEMONSTRAÇÃO}
-
         \noindent\textit{Demonstração.} Sejam $\hat{A} = i\,(2\pi/a)\,\hat{x}_i$ e $\hat{B} = i\,(2\pi/b)\,\hat{p}_i$. De $[\hat{x}_i, \hat{p}_j] = i\hbar\,\delta_{ij}$ decorre
         \begin{equation*}
             [\hat{A}, \hat{B}] = i^2 \frac{4\pi^2}{ab}\, [\hat{x}_i, \hat{p}_i]
@@ -313,7 +313,7 @@
         \begin{equation}\label{eq:form_mod_rede}
             a = b = \sqrt{2\pi\hbar} ,
         \end{equation}
-        \noindent correspondente a uma rede quadrada no espaço de fases. Operadores associados a modos distintos comutam trivialmente, de sorte que a família completa $\{\hat{U}_i, \hat{V}_i\}_{i=1}^{N-1}$ {\color{red} verificar essa afirmação} admite descrição espectral conjunta.
+        \noindent correspondente a uma rede quadrada no espaço de fases. Operadores associados a modos distintos comutam trivialmente, de sorte que a família completa $\{\hat{U}_i, \hat{V}_i\}_{i=1}^{N-1}$ admite descrição espectral conjunta.
 
         Sobre o espectro conjunto, escrevem-se
         \begin{equation}\label{eq:form_mod_autofases}
@@ -353,7 +353,7 @@
         \begin{equation}\label{eq:form_mod_atribuicao}
             \hat{a}_{i,v,r} = F_R(\hat{\theta}_i - \theta_r)\, F_M(\hat{\varphi}_i - \varphi_v) ,
         \end{equation}
-        \noindent que, no nível operatorial, é um polinômio de Laurent {\color{red} confirmar a afirmação} finito em $\hat{U}_i$ e $\hat{V}_i$. Como esses operadores comutam e os coeficientes de Fourier ocorrem em pares adjuntos, $\hat{a}_{i,v,r}$ é limitado e autoadjunto, não havendo ambiguidade de ordenamento em sua definição.
+        \noindent que, no nível operatorial, é um polinômio de Laurent finito em $\hat{U}_i$ e $\hat{V}_i$. Como esses operadores comutam e os coeficientes de Fourier ocorrem em pares adjuntos, $\hat{a}_{i,v,r}$ é limitado e autoadjunto, não havendo ambiguidade de ordenamento em sua definição.
 
         As atribuições satisfazem
         \begin{equation}\label{eq:form_mod_completude}
@@ -499,16 +499,13 @@
 
         Reunindo o objetivo de roteamento, as restrições do VRP, a discretização modular e a regularização de energia finita, obtém-se
         \begin{equation}\label{eq:form_mod_total}
-            \begin{aligned}
-                \hat{H}_{\text{VRP}}^{(\text{reg})}  = & \  \hat{H}_{\text{dist}}
-                + \lambda_{\text{col}} \hat{H}_{\text{col}}
-                + \lambda_{\text{gap}} \hat{H}_{\text{gap}}
-                + \lambda_{\text{veh}} \hat{H}_{\text{veh}}
-                + \\ & 
-                \lambda_{\text{cap}} \hat{H}_{\text{cap}}
-                + \lambda_{\text{disc}} \hat{H}_{\text{disc}}
-                + \lambda_{\text{ph}} \hat{H}_{\text{ph}} .
-            \end{aligned}
+            \hat{H}_{\text{VRP}}^{(\text{reg})} = \hat{H}_{\text{dist}}
+            + \lambda_{\text{col}} \hat{H}_{\text{col}}
+            + \lambda_{\text{gap}} \hat{H}_{\text{gap}}
+            + \lambda_{\text{veh}} \hat{H}_{\text{veh}}
+            + \lambda_{\text{cap}} \hat{H}_{\text{cap}}
+            + \lambda_{\text{disc}} \hat{H}_{\text{disc}}
+            + \lambda_{\text{ph}} \hat{H}_{\text{ph}} .
         \end{equation}
 
         É conveniente separar conceitualmente esse Hamiltoniano em duas partes,
@@ -574,5 +571,15 @@
             \cos\!\left( \frac{b}{M\hbar}\, \hat{x}_i \right)
         \end{equation}
         \noindent gera translações de $\hat{p}_i$ da ordem de um espaçamento de veículo $b/M$, preservando funções de $\hat{x}_i$. Tais operadores não comutam com o Hamiltoniano de custo completo e podem, por conseguinte, induzir dinâmica entre configurações candidatas. Sua realização física e seu desempenho algorítmico constituem questões distintas da validade do Hamiltoniano de custo, e não são tratados neste trabalho.
+
+        A codificação contém, como caso particular, o TSP tratado na \autoref{sec:form_fock}. Tomando $M = 1$, o núcleo de Fejér de ordem unitária é constante, $F_1(t) = 1$, e o operador de atribuição da \autoref{eq:form_mod_atribuicao} reduz-se a
+        \begin{equation}\label{eq:form_mod_tsp}
+            \hat{a}_{i,1,r} = F_R\!\left( \hat{\theta}_i - \theta_r \right) ,
+        \end{equation}
+        \noindent que depende apenas da variável de posição. Existindo um único veículo, a atribuição de veículos é trivial e nenhum termo do Hamiltoniano precisa ser modificado: a expressão da \autoref{eq:form_mod_total} descreve o TSP, e o problema com frota maior difere dele apenas pelo valor do parâmetro $M$. O termo de capacidade não se aplica ao TSP, e o de uso de veículos é satisfeito automaticamente por toda rota compactada à esquerda que contenha ao menos uma cidade, pois a ausência de lacunas exige que a primeira posição esteja ocupada.
+
+        A redução não é completa em um ponto. O termo de discretização da \autoref{eq:form_mod_hdisc} passa a conter $\cos(\hat{\varphi}_i)$, uma vez que $M = 1$ admite um único nó em $\varphi$, e esse termo continua a restringir a quadratura de momento em torno de $\varphi = 0$. Embora a quadratura de momento deixe de rotular qualquer grandeza do problema, ela permanece sujeita à localização imposta pelo estabilizador, e o estado que codifica a solução continua devendo ser preparado com resolução simultânea nas duas quadraturas. O TSP assim representado difere, portanto, da codificação da \autoref{sec:form_fock}: lá, o nível de Fock rotula a cidade e a estrutura canônica do modo é irrelevante; aqui, a posição é rotulada por $\hat{\theta}_i$ e o modo conserva a estrutura de rede no espaço de fases.
+
+        Quando a capacidade do veículo não limita o comprimento da rota, a cota da \autoref{eq:form_mod_R} fornece $R = N-1$, de modo que o espaço de rota de cada cidade tem $N-1$ elementos, tantos quanto os rótulos de cidade da codificação posicional. O mesmo problema admite, assim, duas codificações sobre a mesma instância, o que permite confrontá-las diretamente.
 
         Observa-se, por fim, que o número de modos permanece $N-1$, idêntico ao da codificação anterior, ainda que o problema representado seja estritamente mais geral. A extensão do TSP ao VRP capacitado é obtida sem acréscimo de modos, por utilização da quadratura que permanecia ociosa.
